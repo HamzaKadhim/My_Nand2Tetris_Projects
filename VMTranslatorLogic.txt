@@ -1,0 +1,441 @@
+# VM translator important logic (check py file for finished instructions)
+# contains the asm code I used for some of the harder/more extensive instructions
+
+
+// push local
+	@R1
+	D=M
+	@regInt
+	A=D+A
+	D=M
+	@SP
+	A=M
+	M=D
+	@SP
+	M=M+1
+
+// pop local
+	@R1
+	D=M
+	@REGINT
+	A=D+A
+	D=A
+	@R13
+	M=D
+	@SP
+	M=M-1
+	@SP
+	A=M
+	D=M
+	@R13
+	A=M
+	M=D
+
+// pop static
+	@foo.i
+	D=A
+	@R13
+	M=D
+	@SP
+	M=M-1
+	@SP
+	A=M
+	D=M
+	@R13
+	A=M
+	M=D
+
+// push pointer 0
+	@THIS
+	D=M
+	@SP
+	A=M
+	M=D
+	@SP
+	SP=M+1
+
+// pop pointer 0
+	@SP
+	M=M-1
+	@SP
+	A=M
+	D=M
+	@THIS
+	M=D
+
+// add
+	@SP 		// point at y value
+	M=M-1
+	@SP
+	A=M
+	D=M
+	@R14		// store y in R14
+	M=D
+	@SP 		// point at x value
+	M=M-1
+	@SP
+	A=M
+	D=M
+	@R13		// store x in R13 (not necessary since x already stored in D-register though)
+	M=D
+	@R14		// store x+y in D register
+	D=D+M
+	@SP 		// write x+y into x location in the stack
+	A=M
+	M=D
+	@SP 		// increment the stack pointer
+	M=M+1
+
+// sub
+	@SP 		// point at y value
+	M=M-1
+	@SP
+	A=M
+	D=M
+	@R14		// store y in R14
+	M=D
+	@SP 		// point at x value
+	M=M-1
+	@SP
+	A=M
+	D=M
+	@R13		// store x in R13 (not necessary since x already stored in D-register though)
+	M=D
+	@R14		// store x-y in D register
+	D=D-M
+	@SP 		// write x-y into x location in the stack
+	A=M
+	M=D
+	@SP 		// increment the stack pointer
+	M=M+1	
+
+// neg
+	@SP
+	M=M-1
+	@SP
+	A=M
+	M=-M
+	@SP
+	M=M+1
+
+// eq
+	@SP 		// point at y value
+	M=M-1
+	@SP
+	A=M
+	D=M
+	@R14		// store y in R14
+	M=D
+	@SP 		// point at x value
+	M=M-1
+	@SP
+	A=M
+	D=M
+	@SP
+	A=M
+	M=0			// SP value says false until calculation performed
+	@R13		// store x in R13 (not necessary since x already stored in D-register though)
+	M=D
+	@R14
+	D=D-M
+	@FILLEQ{COUNTER}		// change SP pointer value to true if JEQ and increment SP by 1 otherwise just increment
+	D;JEQ
+	@SP
+	M=M+1
+(FILLEQ{COUNTER})
+	@SP
+	A=M
+	M=-1
+	@SP
+	M=M+1
+
+// gt
+	@SP 		// point at y value
+	M=M-1
+	@SP
+	A=M
+	D=M
+	@R14		// store y in R14
+	M=D
+	@SP 		// point at x value
+	M=M-1
+	@SP
+	A=M
+	D=M
+	@SP
+	A=M
+	M=0			// SP value says false until calculation performed
+	@R13		// store x in R13 (not necessary since x already stored in D-register though)
+	M=D
+	@R14
+	D=D-M
+	@FILLGT{COUNTER}		// change SP pointer value to true if JEQ and increment SP by 1 otherwise just increment
+	D;JGT
+	@SP
+	M=M+1
+(FILLGT{COUNTER})
+	@SP
+	A=M
+	M=-1
+	@SP
+	M=M+1	
+
+// and
+	@SP 		// point at y value
+	M=M-1
+	@SP
+	A=M
+	D=M
+	@R14		// store y in R14
+	M=D
+	@SP 		// point at x value
+	M=M-1
+	@SP
+	A=M
+	D=M
+	@R13		// store x in R13 
+	M=D
+	@R14		// x&y
+	D=D&M
+	@SP
+	A=M
+	M=D
+	@SP
+	M=M+1
+
+// or
+	@SP 		// point at y value
+	M=M-1
+	@SP
+	A=M
+	D=M
+	@R14		// store y in R14
+	M=D
+	@SP 		// point at x value
+	M=M-1
+	@SP
+	A=M
+	D=M
+	@R13		// store x in R13 
+	M=D
+	@R14		// x|y
+	D=D|M
+	@SP
+	A=M
+	M=D
+	@SP
+	M=M+1
+
+// not
+	@SP
+	M=M-1
+	@SP
+	A=M
+	M=!M
+	@SP
+	M=M+1
+
+// if-goto
+	 @SP 
+	 M=M-1 
+	 @SP 
+	 A=M 
+	 D=M 
+	 @LOOP	 	// jump to loop if value is not false (D != 0)
+	 D;JNE
+
+// return
+	@LCL
+	D=M
+	@R7  // store LCL endframe pointer in temp register R7
+	M=D
+	@5
+	A=D-A
+	D=M
+	@R13		// store return address in general purpose reg R13
+	M=D
+	@SP 	// *ARG = pop()
+	M=M-1
+	@SP
+	A=M
+	D=M
+	@ARG
+	A=M
+	M=D
+	@ARG	// reposition SP of the caller above ARG
+	D=M
+	@SP
+	M=D+1
+	@R7		// restores THAT of the caller
+	D=M
+	@1
+	A=D-A
+	D=M
+	@THAT
+	M=D
+	@R7		// restore THIS of the caller
+	D=M
+	@2
+	A=D-A
+	D=M
+	@THIS
+	M=D
+	@R7		// restore ARG of the caller
+	D=M
+	@3
+	A=D-A
+	D=M
+	@ARG
+	M=D
+	@R7		// restore LCL of the caller
+	D=M
+	@4
+	A=D-A
+	D=M
+	@LCL
+	M=D
+	@R13		// goto return address
+	A=M
+	0;JMP
+
+	// call
+	@RETURN_ADDRESS_1	// pushes return address onto the stack frame
+	D=A
+	@SP
+	A=M
+	M=D
+	@SP
+	M=M+1
+	@LCL 	// pushes LCL onto the stack frame
+	D=M
+	@SP
+	A=M
+	M=D
+	@SP
+	M=M+1
+	@ARG 	// pushes ARG onto the stack frame
+	D=M
+	@SP
+	A=M
+	M=D
+	@SP
+	M=M+1
+	@THIS 	// pushes THIS onto the stack frame
+	D=M
+	@SP
+	A=M
+	M=D
+	@SP
+	M=M+1
+	@THAT 	// pushes THAT onto the stack frame
+	D=M
+	@SP
+	A=M
+	M=D
+	@SP
+	M=M+1
+	@SP 	// ARG = SP-5-nArgs
+	D=M
+	@R13
+	M=D
+	@5
+	D=A
+	@R13
+	M=M-D
+	@nArgs
+	D=A
+	@R13
+	M=M-D
+	@R13
+	D=M
+	@ARG
+	M=D
+	@SP 	// repositions LCL (LCL=SP)
+	D=M
+	@LCL
+	M=D
+	@functionName 	// goto called function
+	0;JMP
+	(RETURN_ADDRESS_1)
+
+	# bootstrap 
+	@256		# SP=256
+	D=A
+	@SP
+	M=D
+	@RETURN_ADDRESS_0	// pushes return address onto the stack frame
+	D=A
+	@SP
+	A=M
+	M=D
+	@SP
+	M=M+1
+	@LCL 	// pushes LCL onto the stack frame
+	D=M
+	@SP
+	A=M
+	M=D
+	@SP
+	M=M+1
+	@ARG 	// pushes ARG onto the stack frame
+	D=M
+	@SP
+	A=M
+	M=D
+	@SP
+	M=M+1
+	@THIS 	// pushes THIS onto the stack frame
+	D=M
+	@SP
+	A=M
+	M=D
+	@SP
+	M=M+1
+	@THAT 	// pushes THAT onto the stack frame
+	D=M
+	@SP
+	A=M
+	M=D
+	@SP
+	M=M+1
+	@SP 	// ARG = SP-5-nArgs
+	D=M
+	@R13
+	M=D
+	@5
+	D=A
+	@R13
+	M=M-D
+	@nArgs
+	D=A
+	@R13
+	M=M-D
+	@ARG
+	M=D
+	@SP 	// repositions LCL (LCL=SP)
+	D=M
+	@LCL
+	M=D
+	@Sys.init 	// goto called function
+	0;JMP
+	(RETURN_ADDRESS_0)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
